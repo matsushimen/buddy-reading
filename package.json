@@ -1,6 +1,8 @@
 {
   "name": "buddy-reading",
   "version": "0.1.0",
+  "description": "AI-powered PDF/EPUB reading assistant that provides context-aware LLM annotations, definitions, and summaries.",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "next dev",

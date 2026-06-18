@@ -40,3 +40,7 @@ Thumbs.db
 *.jpg
 *.jpeg
 *.gif
+
+# local development phases documentation
+DEVELOPMENT_PHASES.md
+

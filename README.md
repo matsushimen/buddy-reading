@@ -1,103 +1,84 @@
-# AI Reading Assistant - Codex Build Brief
+# Buddy Reading (バディ・リーディング)
 
-目的: PDF/EPUBを読む画面に、LLMによる注釈・固有名詞解説・概念解説を表示する汎用読書支援アプリを作る。
+AI-powered PDF/EPUB reading assistant that provides context-aware LLM annotations, definitions, and summaries.
+PDFやEPUBを読みながら、LLMを活用した用語・概念解説、キャラクターの整理、文脈要約をインタラクティブに行える読書支援Webアプリケーションです。
 
-想定形態:
-- Web/PWAを第一ターゲットにする
-- 将来、CapacitorでiOS/Androidネイティブラッパー化できる構成にする
-- OpenAI互換APIエンドポイントを利用する
-- サーバー側にエージェント層を持たせ、skillを読み、v0.1では既存のMEMORY.md / BOOK_CONTEXT.mdをread-onlyで参照する
+---
 
-v0.1 MVPの定義:
-1. PDFをアップロードまたはローカル選択できる
-2. PDF本文を表示できる
-3. 現在表示中のページ・選択テキストをサーバーへ送信できる
-4. サーバーがOpenAI互換APIを呼び、注釈候補をJSONで返す
-5. タブレット/PCではサイドバー、スマホではBottom Sheet/吹き出しで表示する
-6. 読書位置・注釈結果をローカル保存する
+## 🚀 主な機能 (Key Features)
 
-v0.2以降:
-- EPUBアップロード、表示、章/Spineナビゲーション、EPUB CFI進捗管理
+### 1. マルチフォーマット対応の読書エンジン
+- **PDF 表示**: PDF.jsによる高速レンダリング、レスポンシブなサイズ追従。
+- **EPUB 表示**: EPUB.jsによるリキッドレイアウト表示、グローバルページネーションの自動計測、進捗位置同期（EPUB CFI）。
+- **モバイルファースト設計**: 片手での操作性に優れた画面下部の読書ナビゲーションバー（ページ送り、目次遷移、位置表示）、全画面表示モード。
 
-非目標 v0.1:
-- 本全体RAG
-- EPUB対応
-- 複数ユーザー同期
-- DRM付き電子書籍対応
-- App Store/Google Play配布
-- 自動OCR
+### 2. コンテキスト志向の AI 注釈・解説 (AI Annotations)
+- **スマート解説**: 読んでいるページ全体や、選択した一部分のテキストをコンテキストとして抽出し、AIが構造化された注釈（用語解説、歴史的背景、重要度、関連トピックなど）を生成。
+- **スキル・プロンプト切り替え**: `skills/` ディレクトリにMarkdown形式で定義されたプロンプトテンプレート（例: 専門用語解説、語学学習、プログラミング学習など）をサーバー側で切り替えて実行可能。
 
-## Phase1実装
+### 3. エージェントによるコンテキスト管理 (Memory & Book Context)
+- **ユーザー個人メモリ (`MEMORY.md`)**: ユーザーの関心事や読書スタイルを記録するパーソナライズメモリ。読書内容に基づきAIが更新案を提案し、ユーザーの承認（Approve）によって更新。
+- **書籍専用コンテキスト (`BOOK_CONTEXT.md`)**: 登場人物の相関図や前提知識などを記録する書籍専用のコンテキスト。読書内容に基づきAIが追記案を提案・更新。
 
-Phase1ではNext.js App Router、TypeScript strict、Tailwind CSS、PWA manifest/service worker、PDF.js、EPUB.jsを使う。
+### 4. プライバシー & オフラインフレンドリー
+- 取り込んだ書籍データ、読書進捗、AIによって生成された過去の注釈は、すべてブラウザのローカルデータベース（IndexedDB/Dexie）にのみ保存されます。
+- APIキー等の機密情報はブラウザ側に保存せず、サーバーサイドのみで管理されます。
 
-実装済み:
-- ホーム画面
-- 本棚画面
-- PDF/EPUBのローカル取り込み
-- PDF表示
-- EPUB表示
-- AIサイドバーUI
-- `/api/annotations` のモックAgent API
-- 構造化JSONレスポンスのZod検証
+---
 
-未実装:
-- OpenAI API接続
-- MEMORY機能
-- RAG
-- DRM付き電子書籍
+## 🛠️ アーキテクチャ (Architecture)
 
-## 開発コマンド
+本アプリケーションは、信頼できない書籍テキストから安全に情報を抽出するために、以下のクローズドなフローを採用しています。
 
-```bash
-npm install
-npm run dev
-npm run build
-npm run lint
-npm run test
+```
+[ Reader (Browser) ]
+       │  (1) 表示テキスト / 選択テキストを抽出
+       ▼
+[ Annotation Agent (Next.js Server) ]
+       │  (2) リクエスト検証
+       │  (3) 設定された Skill & MEMORY / BOOK_CONTEXT のロード
+       │  (4) プロンプトの組み立て (書籍テキストの境界を厳密に区切り注入)
+       ▼
+[ LLM Provider (OpenAI Compatible) ]
+       │  (5) 構造化JSON形式での応答
+       ▼
+[ Annotation Agent (Next.js Server) ]
+       │  (6) Zodによる厳格なJSONスキーマ検証 & 自動修復
+       ▼
+[ Reader (Browser) ]
+          (7) 安全に構造化された注釈をUIに描画
 ```
 
-## Phase2実装
+---
 
-Phase2ではPhase1監査で見つかった拡張前の負債を解消する。
+## 🏁 クイックスタート (Getting Started)
 
-実装済み:
-- Agent APIを `route -> annotation-agent -> prompt-builder -> mock-llm` に分離
-- プロンプト境界を明示し、本文/選択テキストを未信頼ソースとして扱う
-- IndexedDBの読書位置をPDFページ/EPUB CFIで復元
-- 設定由来の `userId` / `skillId` / language / detailLevel をAgent requestへ渡す
-- PDF表示をResizeObserverでリサイズ追従
-- EPUB iframe内の選択テキスト取得
-- PWA manifest metadataの補強
+### 動作要件 (Prerequisites)
+- Node.js v18 以上 (推奨 v20 以上)
+- OpenAI 互換の API キー (OpenAI, Ollama, DeepSeek, LocalAI など)
 
-引き続き未実装:
-- OpenAI API接続
-- MEMORY.md更新/表示
-- RAG
-- マルチユーザー認証
+### インストール (Installation)
 
-## Phase3実装
+1. リポジトリをクローンまたはダウンロードします。
+```bash
+git clone https://github.com/your-username/buddy-reading.git
+cd buddy-reading
+```
 
-Phase3ではモックAgentから実AI接続可能なAgentへ進める。
+2. 依存関係をインストールします。
+```bash
+npm install
+```
 
-実装済み:
-- OpenAI互換Chat Completions APIへのserver-side接続
-- `.env.local` によるAPI設定
-- APIキー未設定時のモックfallback
-- `skills/{skillId}.md` のread-only読み込み
-- prompt builderの本番化
-- LLM応答の構造化JSON検証
-- JSON抽出fallback、ローカルLLM向けの応答正規化、安全なfallback注釈
-- 注釈結果のIndexedDB保存
-- 保存済み注釈の自動表示
-- 注釈の再生成
-- 長い本文の送信量制限
+3. 環境設定ファイルを作成します。 `.env.example` をコピーして `.env.local` を作成します。
+```bash
+cp .env.example .env.local
+```
 
-`.env.local` 例:
-
+4. `.env.local` をエディタで開き、お使いのLLMプロバイダの接続情報を設定します。
 ```bash
 OPENAI_COMPAT_BASE_URL=https://api.openai.com/v1
-OPENAI_COMPAT_API_KEY=your_api_key_here
+OPENAI_COMPAT_API_KEY=your_actual_api_key_here
 OPENAI_COMPAT_MODEL=gpt-4o-mini
 OPENAI_COMPAT_TIMEOUT_MS=60000
 OPENAI_COMPAT_TEMPERATURE=0.2
@@ -105,22 +86,55 @@ OPENAI_COMPAT_RESPONSE_FORMAT=true
 AGENT_MOCK_MODE=false
 ```
 
-Ollamaなど一部のOpenAI互換APIで `response_format` が不安定な場合は、`OPENAI_COMPAT_RESPONSE_FORMAT=false` にする。
-APIキーはブラウザに保存しない。UIは `/api/annotations` のみを呼び、LLM providerはserver-side Agentから呼ぶ。
+5. 開発用ローカルサーバーを起動します。
+```bash
+npm run dev
+```
+ブラウザで `http://localhost:3000` にアクセスしてください。
 
-## Phase4以降の実装・予定
+---
 
-### 実装済み
-- **読書ナビゲーションUIの改善**:
-  - `EpubViewer` および `PdfViewer` のページ送り・目次遷移・進捗表示等の操作コントロールを画面下部（フッター）に集約し、片手での操作性を向上。
-  - モバイル表示時における「AI注釈を開く/要約する」フローティングボタンの位置を `bottom-20` へ調整し、下部ナビゲーションバーとの重なりを防止。
-- **MEMORY.mdの更新**: 読み取り・提案・承認保存のフローを実装済み。
-- **BOOK_CONTEXT.mdの更新**: 読み取り・提案・承認保存のフローを実装済み。
+## ⚙️ スキル・プロンプトの追加 (Custom Skills)
 
-### 今後の予定
-- 本文中の単語クリック/タップによる説明表示
-- サイドバー占有を減らしたpopover/bottom sheet型の注釈UI（吹き出しやシート形式）
-- 追質問によるLLM対話の拡張
-- RAG
-- マルチユーザー認証
+AIの注釈アプローチを変更する「スキル」は、`skills/` ディレクトリ配下にMarkdownファイルとして配置することで、プログラムの再ビルドなしで動的に追加・編集することができます。
 
+### スキルファイルの例 (`skills/my-custom-skill.md`)
+```markdown
+---
+name: "my-custom-skill"
+description: "プログラミング用語とコード解説に特化したスキル"
+---
+
+# あなたの役割
+あなたはプログラミングの学習を支援する優秀なAIバディです。
+
+# 指示
+提示された書籍テキストから、初心者にとって難解と思われる「プログラミング用語」「デザインパターン」「API/ライブラリ」を抽出し、以下のフォーマットで解説してください。
+...
+```
+
+---
+
+## 🧪 テスト・品質検証 (Testing & Quality)
+
+コードの品質を担保するため、静的チェックとテストコードが整備されています。
+
+```bash
+# リンターの実行 (ESLint)
+npm run lint
+
+# 型チェック (TypeScript compile test)
+npx tsc --noEmit
+
+# ユニットテスト・統合テストの実行 (Vitest)
+npm run test
+
+# 本番ビルドの動作検証
+npm run build
+```
+
+---
+
+## 📄 ライセンス (License)
+
+このプロジェクトは [MIT License](LICENSE) のもとでオープンソースとして公開されています。
