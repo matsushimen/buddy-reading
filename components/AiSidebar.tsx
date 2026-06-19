@@ -15,6 +15,7 @@ import {
 import { createAnnotationCacheKey } from "@/lib/cache-key";
 import { deleteAnnotation, getAnnotationByCacheKey, getAnnotationsByBookId, saveAnnotation } from "@/lib/db";
 import { buildReaderAnnotationChatRequest, buildReaderAnnotationRequest } from "@/lib/annotation-request";
+import { searchBookChunks } from "@/lib/rag/vector-search";
 import type {
   AnnotationResponse,
   AnnotationRecord,
@@ -38,6 +39,7 @@ type AiSidebarProps = {
   annotationRefreshToken: number;
   onAnnotationSaved: () => void;
   onNavigateLocation: (location: AnnotationRecord["location"]) => void;
+  indexingProgress: number | null;
 };
 
 type ChatMessage = {
@@ -59,7 +61,8 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
     selectedText,
     readingPositionLabel,
     settings,
-    visibleText
+    visibleText,
+    indexingProgress
   } = props;
   const [response, setResponse] = useState<AnnotationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +92,7 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
   const [annotationHistory, setAnnotationHistory] = useState<AnnotationRecord[]>([]);
   const [expandedAnnotationId, setExpandedAnnotationId] = useState<string | null>(null);
   const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
+  const [searchInBook, setSearchInBook] = useState(false);
   const selectedTextTrimmed = selectedText.trim();
   const visibleTextTrimmed = visibleText.trim();
   const hasContext = selectedTextTrimmed.length > 0 || visibleTextTrimmed.length > 0;
@@ -287,8 +291,22 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
     setChatError(null);
 
     try {
+      let retrievedChunks: string[] | undefined;
+      if (searchInBook) {
+        try {
+          const results = await searchBookChunks(bookId, question, 3);
+          retrievedChunks = results.map((r) => r.chunk.text);
+        } catch (searchErr) {
+          console.warn("RAG search failed, falling back to basic context", searchErr);
+        }
+      }
+
       const conversation = chatMessages.slice(-6);
-      const request = buildReaderAnnotationChatRequest(props, question, conversation);
+      const baseRequest = buildReaderAnnotationChatRequest(props, question, conversation);
+      const request = {
+        ...baseRequest,
+        retrievedChunks
+      };
       const result = await requestAnnotationChat(request);
       setChatMessages([
         ...conversation,
@@ -696,6 +714,27 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
                       void askQuestion();
                     }}
                   >
+                    <div className="flex items-center justify-between gap-2 pb-1">
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-accent focus:ring-accent"
+                          checked={searchInBook}
+                          disabled={indexingProgress !== null && indexingProgress < 100}
+                          onChange={(e) => setSearchInBook(e.target.checked)}
+                        />
+                        <span className="text-xs font-semibold text-slate-600">本全体から探す (RAG)</span>
+                      </label>
+                      {indexingProgress !== null && indexingProgress < 100 ? (
+                        <span className="text-[10px] font-semibold text-amber-600 animate-pulse">
+                          インデックス作成中... {indexingProgress}%
+                        </span>
+                      ) : indexingProgress === 100 ? (
+                        <span className="text-[10px] font-semibold text-emerald-600">
+                          インデックス完了
+                        </span>
+                      ) : null}
+                    </div>
                     <textarea
                       className="min-h-24 w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none ring-0 placeholder:text-slate-400 focus:border-blue-300"
                       value={chatInput}

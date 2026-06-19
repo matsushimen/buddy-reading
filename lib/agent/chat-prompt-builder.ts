@@ -49,34 +49,46 @@ export function buildAnnotationChatPrompt(
       bookContextContent.trim(),
       "</book_context>"
     ].join("\n"),
-    user: [
-      `Book: ${request.bookTitle}`,
-      `Format: ${request.format}`,
-      `Location: ${JSON.stringify(request.location)}`,
-      `Detail level: ${request.options.detailLevel}`,
-      `Language: ${request.options.language}`,
-      contextInstruction,
-      "",
-      "<selected_text>",
-      selectedText,
-      "</selected_text>",
-      "",
-      "<visible_text>",
-      visibleText,
-      "</visible_text>",
-      "",
-      "<conversation>",
-      conversation.map((turn) => `${turn.role.toUpperCase()}: ${turn.content.trim()}`).join("\n"),
-      "</conversation>",
-      "",
-      "<question>",
-      request.question.trim(),
-      "</question>",
-      "",
-      "Return JSON with exactly these top-level keys: answer, followupQuestions, warnings.",
-      "The answer must directly respond to the question using the provided context.",
-      "If the answer is uncertain, say so briefly instead of guessing."
-    ].join("\n"),
+    user: (() => {
+      const chunks = request.retrievedChunks ?? [];
+      const ragSection = chunks.length > 0
+        ? [
+            "Below are relevant book excerpts retrieved from the book search index:",
+            ...chunks.map((chunk, i) => `[BOOK_SOURCE_${i + 1}]\n${chunk.trim()}\n[/BOOK_SOURCE_${i + 1}]`),
+            ""
+          ].join("\n")
+        : "";
+
+      return [
+        `Book: ${request.bookTitle}`,
+        `Format: ${request.format}`,
+        `Location: ${JSON.stringify(request.location)}`,
+        `Detail level: ${request.options.detailLevel}`,
+        `Language: ${request.options.language}`,
+        contextInstruction,
+        "",
+        ragSection,
+        "<selected_text>",
+        selectedText,
+        "</selected_text>",
+        "",
+        "<visible_text>",
+        visibleText,
+        "</visible_text>",
+        "",
+        "<conversation>",
+        conversation.map((turn) => `${turn.role.toUpperCase()}: ${turn.content.trim()}`).join("\n"),
+        "</conversation>",
+        "",
+        "<question>",
+        request.question.trim(),
+        "</question>",
+        "",
+        "Return JSON with exactly these top-level keys: answer, followupQuestions, warnings.",
+        "The answer must directly respond to the question using the provided context.",
+        "If the answer is uncertain, say so briefly instead of guessing."
+      ].join("\n");
+    })(),
     metadata: {
       promptVersion: chatPromptVersion,
       skillId: request.skillId,

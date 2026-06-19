@@ -88,6 +88,7 @@ export type AnnotationChatRequest = {
     detailLevel: "brief" | "standard" | "deep";
     language: "ja" | "en" | "auto";
   };
+  retrievedChunks?: string[];
 };
 
 export type AnnotationChatResponse = {
@@ -208,3 +209,14 @@ export type AppSettings = {
   language: "ja" | "en" | "auto";
   detailLevel: "brief" | "standard" | "deep";
 };
+
+export type BookChunk = {
+  id: string;
+  bookId: string;
+  text: string;
+  embedding: number[];
+  pageNum?: number;
+  epubCfi?: string;
+  createdAt: string;
+};
+

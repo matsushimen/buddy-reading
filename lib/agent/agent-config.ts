@@ -2,6 +2,7 @@ export type AgentConfig = {
   baseUrl: string;
   apiKey: string;
   model: string;
+  embeddingModel: string;
   timeoutMs: number;
   temperature: number;
   sendResponseFormat: boolean;
@@ -10,6 +11,7 @@ export type AgentConfig = {
 
 const defaultBaseUrl = "https://api.openai.com/v1";
 const defaultModel = "gpt-4o-mini";
+const defaultEmbeddingModel = "text-embedding-3-small";
 const defaultTimeoutMs = 60000;
 const defaultTemperature = 0.2;
 
@@ -17,6 +19,7 @@ export function getAgentConfig(): AgentConfig {
   const baseUrl = process.env.OPENAI_COMPAT_BASE_URL?.trim() || defaultBaseUrl;
   const apiKey = process.env.OPENAI_COMPAT_API_KEY?.trim() ?? "";
   const model = process.env.OPENAI_COMPAT_MODEL?.trim() || defaultModel;
+  const embeddingModel = process.env.OPENAI_COMPAT_EMBEDDING_MODEL?.trim() || defaultEmbeddingModel;
   const timeoutMs = parsePositiveInteger(process.env.OPENAI_COMPAT_TIMEOUT_MS, defaultTimeoutMs);
   const temperature = parseFiniteNumber(process.env.OPENAI_COMPAT_TEMPERATURE, defaultTemperature);
   const sendResponseFormat = process.env.OPENAI_COMPAT_RESPONSE_FORMAT !== "false";
@@ -26,6 +29,7 @@ export function getAgentConfig(): AgentConfig {
     baseUrl,
     apiKey,
     model,
+    embeddingModel,
     timeoutMs,
     temperature,
     sendResponseFormat,

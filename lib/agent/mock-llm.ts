@@ -52,3 +52,24 @@ function firstPhrase(text: string): string {
 function truncate(text: string, maxLength: number): string {
   return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
 }
+
+export function callMockEmbeddings(input: string | string[]): number[][] {
+  const inputs = Array.isArray(input) ? input : [input];
+  return inputs.map((text: string): number[] => {
+    const vector: number[] = Array.from({ length: 1536 }, () => 0);
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    for (let j = 0; j < 1536; j++) {
+      vector[j] = Math.sin(hash + j) * 0.05;
+    }
+    const norm = Math.sqrt(vector.reduce((sum: number, val: number) => sum + val * val, 0));
+    if (norm > 0) {
+      for (let j = 0; j < 1536; j++) {
+        vector[j] /= norm;
+      }
+    }
+    return vector;
+  });
+}

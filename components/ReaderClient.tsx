@@ -10,6 +10,7 @@ import { PdfViewer } from "@/components/PdfViewer";
 import { requestAnnotations } from "@/lib/agent-client";
 import { buildReaderAnnotationRequest } from "@/lib/annotation-request";
 import { db, getBookFile, getProgress, getSettings, saveAnnotation } from "@/lib/db";
+import { indexBookIfMissing } from "@/lib/rag/indexer";
 import type { AnnotationResponse, AppSettings, ReadingProgress, StoredBook } from "@/lib/types";
 
 type ReaderClientProps = {
@@ -40,6 +41,7 @@ export function ReaderClient({ bookId }: ReaderClientProps): React.ReactElement 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [indexingProgress, setIndexingProgress] = useState<number | null>(null);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -100,6 +102,13 @@ export function ReaderClient({ bookId }: ReaderClientProps): React.ReactElement 
       );
       setReadingPositionLabel(found.format === "pdf" ? `P.${savedProgress?.pdfPage ?? 1}` : "P.1");
       setIsLoading(false);
+
+      // Trigger indexing in the background
+      void indexBookIfMissing(found.id, found.title, found.format, file, (progress) => {
+        setIndexingProgress(progress);
+      }).catch((cause: unknown) => {
+        console.warn("Index creation failed for book", found.title, cause);
+      });
     }
 
     void loadBook().catch((cause: unknown) => {
@@ -219,6 +228,7 @@ export function ReaderClient({ bookId }: ReaderClientProps): React.ReactElement 
             setAnnotationRefreshToken((current) => current + 1);
           }}
           onNavigateLocation={handleNavigateLocation}
+          indexingProgress={indexingProgress}
         />
         <SelectionPopover
           state={selectionState}

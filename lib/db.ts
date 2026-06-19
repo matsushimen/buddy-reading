@@ -1,7 +1,7 @@
 "use client";
 
 import Dexie, { type Table } from "dexie";
-import type { AnnotationRecord, AppSettings, ReadingProgress, StoredBook, StoredBookFile } from "@/lib/types";
+import type { AnnotationRecord, AppSettings, BookChunk, ReadingProgress, StoredBook, StoredBookFile } from "@/lib/types";
 
 const defaultSettings: AppSettings = {
   userId: "default",
@@ -17,6 +17,7 @@ class ReaderDatabase extends Dexie {
   progress!: Table<ReadingProgress, string>;
   settings!: Table<{ key: string; value: AppSettings }, string>;
   annotations!: Table<AnnotationRecord, string>;
+  bookChunks!: Table<BookChunk, string>;
 
   constructor() {
     super("buddy-reading");
@@ -39,6 +40,14 @@ class ReaderDatabase extends Dexie {
       progress: "bookId, updatedAt",
       settings: "key",
       annotations: "id, cacheKey, bookId, updatedAt, locationKey"
+    });
+    this.version(4).stores({
+      books: "id, format, updatedAt",
+      files: "key",
+      progress: "bookId, updatedAt",
+      settings: "key",
+      annotations: "id, cacheKey, bookId, updatedAt, locationKey",
+      bookChunks: "id, bookId"
     });
   }
 }
@@ -91,12 +100,21 @@ export async function getBookFile(book: StoredBook): Promise<Blob | null> {
 }
 
 export async function deleteBook(book: StoredBook): Promise<void> {
-  await db.transaction("rw", db.books, db.files, db.progress, db.annotations, async () => {
+  await db.transaction("rw", [db.books, db.files, db.progress, db.annotations, db.bookChunks], async () => {
     await db.books.delete(book.id);
     await db.files.delete(book.fileBlobKey);
     await db.progress.delete(book.id);
     await db.annotations.where("bookId").equals(book.id).delete();
+    await db.bookChunks.where("bookId").equals(book.id).delete();
   });
+}
+
+export async function saveBookChunks(chunks: BookChunk[]): Promise<void> {
+  await db.bookChunks.bulkPut(chunks);
+}
+
+export async function getBookChunks(bookId: string): Promise<BookChunk[]> {
+  return await db.bookChunks.where("bookId").equals(bookId).toArray();
 }
 
 export async function getAnnotationByCacheKey(cacheKey: string): Promise<AnnotationRecord | null> {

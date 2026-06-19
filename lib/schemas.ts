@@ -190,10 +190,24 @@ export const annotationChatRequestSchema = z
         detailLevel: z.enum(["brief", "standard", "deep"]),
         language: z.enum(["ja", "en", "auto"])
       })
-      .strict()
+      .strict(),
+    retrievedChunks: z.array(z.string().max(8000)).max(10).optional()
   })
   .strict()
   .refine((request) => request.visibleText.trim().length > 0 || (request.selectedText?.trim().length ?? 0) > 0, {
     message: "visibleText or selectedText is required",
     path: ["visibleText"]
   });
+
+export const embeddingRequestSchema = z
+  .object({
+    input: z.union([z.string().max(8000), z.array(z.string().max(8000)).max(100)])
+  })
+  .strict();
+
+export const embeddingResponseSchema = z
+  .object({
+    embeddings: z.array(z.array(z.number()))
+  })
+  .strict();
+
