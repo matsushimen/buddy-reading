@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  buddy-reading:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buddy-reading
+    ports:
+      - "3001:3000" # Maps port 3001 on the host to port 3000 in the container
+    env_file:
+      - .env.local
+    restart: always
