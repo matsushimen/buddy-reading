@@ -14,9 +14,31 @@ export function BookshelfClient(): React.ReactElement {
 
   useEffect(() => {
     async function loadBooks(): Promise<void> {
+      // 1. Load local books
       const loaded = await db.books.orderBy("updatedAt").reverse().toArray();
       setBooks(loaded);
       setIsLoading(false);
+
+      // 2. Fetch server books and sync to IndexedDB
+      try {
+        const response = await fetch("/api/books");
+        if (response.ok) {
+          const serverBooks = (await response.json()) as StoredBook[];
+          await db.transaction("rw", db.books, async () => {
+            for (const serverBook of serverBooks) {
+              const exists = await db.books.get(serverBook.id);
+              if (!exists) {
+                await db.books.put(serverBook);
+              }
+            }
+          });
+
+          const updated = await db.books.orderBy("updatedAt").reverse().toArray();
+          setBooks(updated);
+        }
+      } catch (err) {
+        console.warn("Failed to sync server books list:", err);
+      }
     }
 
     void loadBooks();

@@ -86,17 +86,91 @@ export async function getSettings(): Promise<AppSettings> {
   };
 }
 
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+let pendingProgress: ReadingProgress | null = null;
+
+async function performSync(): Promise<void> {
+  if (!pendingProgress) {
+    return;
+  }
+  const progress = pendingProgress;
+  pendingProgress = null;
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+
+  try {
+    const response = await fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(progress)
+    });
+    if (response.ok) {
+      const serverProgress = (await response.json()) as ReadingProgress;
+      if (new Date(serverProgress.updatedAt) > new Date(progress.updatedAt)) {
+        await db.progress.put(serverProgress);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to sync progress to server:", err);
+  }
+}
+
 export async function getProgress(bookId: string): Promise<ReadingProgress | null> {
+  // Sync from server first
+  try {
+    const response = await fetch(`/api/progress?bookId=${bookId}`);
+    if (response.ok) {
+      const serverProgress = (await response.json()) as ReadingProgress | null;
+      if (serverProgress) {
+        const local = await db.progress.get(bookId);
+        if (!local || new Date(serverProgress.updatedAt) > new Date(local.updatedAt)) {
+          await db.progress.put(serverProgress);
+          return serverProgress;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to fetch progress from server:", err);
+  }
+
   return (await db.progress.get(bookId)) ?? null;
 }
 
 export async function saveProgress(progress: ReadingProgress): Promise<void> {
   await db.progress.put(progress);
+
+  // Debounce server sync by 1 second to avoid spamming the endpoint
+  pendingProgress = progress;
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+  }
+  syncTimeout = setTimeout(() => {
+    void performSync();
+  }, 1000);
 }
 
 export async function getBookFile(book: StoredBook): Promise<Blob | null> {
   const record = await db.files.get(book.fileBlobKey);
-  return record?.blob ?? null;
+  if (record?.blob) {
+    return record.blob;
+  }
+
+  // Fallback: Fetch from server-side files
+  try {
+    const response = await fetch(`/api/books/${book.id}/file`);
+    if (response.ok) {
+      const blob = await response.blob();
+      // Cache locally in IndexedDB
+      await db.files.put({ key: book.fileBlobKey, blob });
+      return blob;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch book file from server:", err);
+  }
+
+  return null;
 }
 
 export async function deleteBook(book: StoredBook): Promise<void> {

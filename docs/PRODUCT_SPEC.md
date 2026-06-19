@@ -62,9 +62,9 @@ Acceptance criteria:
 As a user, I get an annotation UI appropriate to my device.
 
 Acceptance criteria:
-- >= 1024px: persistent right sidebar.
-- 600-1023px: collapsible side panel.
-- < 600px: floating action button + bottom sheet / bubble.
+- >= 1024px: Collapsible right sidebar. Defaults to open on load, but can be closed using an 'X' button to let the reader take 100% width, and reopened via a floating Bot action button.
+- 600-1023px: Collapsible side panel.
+- < 600px: Floating action button + bottom sheet / bubble.
 
 ### US-006: Page-based reading model
 As a user, I can read EPUB content in discrete pages without continuous scrolling.

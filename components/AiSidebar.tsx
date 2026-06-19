@@ -98,6 +98,12 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
   const hasContext = selectedTextTrimmed.length > 0 || visibleTextTrimmed.length > 0;
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setIsOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     setChatMessages([]);
     setChatInput("");
     setChatError(null);
@@ -455,19 +461,21 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
 
   return (
     <>
-      <button
-        type="button"
-        className="fixed bottom-20 right-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-panel lg:hidden"
-        aria-label="AI注釈を開く"
-        onClick={() => setIsOpen(true)}
-      >
-        <Bot className="h-5 w-5" aria-hidden />
-      </button>
+      {!isOpen ? (
+        <button
+          type="button"
+          className="fixed bottom-20 right-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-panel"
+          aria-label="AI注釈を開く"
+          onClick={() => setIsOpen(true)}
+        >
+          <Bot className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
 
       <aside
         className={[
-          "fixed inset-x-0 bottom-0 z-40 flex h-[78dvh] max-h-[78dvh] flex-col overflow-hidden rounded-t-lg border border-line bg-white shadow-panel transition-transform lg:static lg:h-[calc(100dvh-5rem)] lg:max-h-none lg:w-96 lg:shrink-0 lg:translate-y-0 lg:rounded-none lg:border-y-0 lg:border-r-0",
-          isOpen ? "translate-y-0" : "translate-y-[calc(100%+1rem)]"
+          "fixed inset-x-0 bottom-0 z-40 flex h-[78dvh] max-h-[78dvh] flex-col overflow-hidden rounded-t-lg border border-line bg-white shadow-panel transition-transform lg:static lg:h-[calc(100dvh-4rem)] lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-y-0 lg:border-r-0",
+          isOpen ? "translate-y-0 lg:flex" : "translate-y-[calc(100%+1rem)] lg:hidden"
         ].join(" ")}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
@@ -475,7 +483,7 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
             <Bot className="h-5 w-5 text-accent" aria-hidden />
             <h2 className="text-sm font-semibold text-ink">AI Annotations</h2>
           </div>
-          <button type="button" className="rounded-md p-2 text-slate-500 lg:hidden" aria-label="閉じる" onClick={() => setIsOpen(false)}>
+          <button type="button" className="rounded-md p-2 text-slate-500" aria-label="閉じる" onClick={() => setIsOpen(false)}>
             <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
