@@ -859,12 +859,12 @@ export function EpubViewer({
             {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
             <div
               ref={containerRef}
-              className={`box-border flex h-full min-h-[70dvh] w-full max-w-full overflow-hidden bg-white ${
+              className={`box-border flex h-full min-h-[70dvh] w-full max-w-full overflow-hidden bg-white touch-pan-y ${
                 isFullscreen ? "rounded-none border-0" : "rounded-md border border-line"
               }`}
               style={{ padding: epubContentPadding.css }}
             >
-              <div ref={renderViewportRef} className="h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-white" />
+              <div ref={renderViewportRef} className="h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-white touch-pan-y" />
             </div>
           </div>
         </div>

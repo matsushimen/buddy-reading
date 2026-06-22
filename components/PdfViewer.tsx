@@ -49,6 +49,7 @@ export function PdfViewer({
   const selectionFrameRef = useRef<number | null>(null);
   const renderGenerationRef = useRef(0);
   const [pageNumber, setPageNumber] = useState(Math.max(1, initialPage));
+  const [renderWidth, setRenderWidth] = useState(0);
   const [pageCount, setPageCount] = useState(0);
 
   const touchStartXRef = useRef<number | null>(null);
@@ -141,8 +142,7 @@ export function PdfViewer({
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("touchcancel", handleTouchCancel);
     };
-  }, [pageCount, pageNumber]);
-  const [renderWidth, setRenderWidth] = useState(0);
+  }, [pageCount, pageNumber, renderWidth]);
   const [documentVersion, setDocumentVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(true);
