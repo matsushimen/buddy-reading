@@ -64,8 +64,8 @@ export function PdfViewer({
 
     const handleTouchStart = (e: TouchEvent): void => {
       if (e.touches.length > 0) {
-        touchStartXRef.current = e.touches[0].clientX;
-        touchStartYRef.current = e.touches[0].clientY;
+        touchStartXRef.current = e.touches[0].screenX;
+        touchStartYRef.current = e.touches[0].screenY;
         isHorizontalSwipe = false;
       }
     };
@@ -75,8 +75,8 @@ export function PdfViewer({
         return;
       }
       if (e.touches.length > 0) {
-        const currentX = e.touches[0].clientX;
-        const currentY = e.touches[0].clientY;
+        const currentX = e.touches[0].screenX;
+        const currentY = e.touches[0].screenY;
         const diffX = currentX - touchStartXRef.current;
         const diffY = currentY - touchStartYRef.current;
 
@@ -93,15 +93,12 @@ export function PdfViewer({
     };
 
     const handleTouchEnd = (e: TouchEvent): void => {
-      if (window.innerWidth >= 640) {
-        return;
-      }
       if (touchStartXRef.current === null || touchStartYRef.current === null) {
         return;
       }
       if (e.changedTouches.length > 0) {
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
+        const endX = e.changedTouches[0].screenX;
+        const endY = e.changedTouches[0].screenY;
         const diffX = endX - touchStartXRef.current;
         const diffY = endY - touchStartYRef.current;
 
@@ -391,7 +388,7 @@ export function PdfViewer({
 
       <div
         ref={containerRef}
-        className={`min-h-0 flex-1 overflow-auto bg-slate-100 ${isFullscreen ? "p-0" : "p-4"}`}
+        className={`min-h-0 flex-1 overflow-auto bg-slate-100 touch-pan-y ${isFullscreen ? "p-0" : "p-4"}`}
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest("button")) {

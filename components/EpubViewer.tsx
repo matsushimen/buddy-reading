@@ -532,8 +532,8 @@ export function EpubViewer({
 
         const handleTouchStart = (event: TouchEvent): void => {
           if (event.touches.length > 0) {
-            touchStartXRef.current = event.touches[0].clientX;
-            touchStartYRef.current = event.touches[0].clientY;
+            touchStartXRef.current = event.touches[0].screenX;
+            touchStartYRef.current = event.touches[0].screenY;
             isHorizontalSwipe = false;
           }
         };
@@ -543,8 +543,8 @@ export function EpubViewer({
             return;
           }
           if (event.touches.length > 0) {
-            const currentX = event.touches[0].clientX;
-            const currentY = event.touches[0].clientY;
+            const currentX = event.touches[0].screenX;
+            const currentY = event.touches[0].screenY;
             const diffX = currentX - touchStartXRef.current;
             const diffY = currentY - touchStartYRef.current;
 
@@ -561,15 +561,12 @@ export function EpubViewer({
         };
 
         const handleTouchEnd = (event: TouchEvent): void => {
-          if (window.innerWidth >= 640) {
-            return;
-          }
           if (touchStartXRef.current === null || touchStartYRef.current === null) {
             return;
           }
           if (event.changedTouches.length > 0) {
-            const endX = event.changedTouches[0].clientX;
-            const endY = event.changedTouches[0].clientY;
+            const endX = event.changedTouches[0].screenX;
+            const endY = event.changedTouches[0].screenY;
             const diffX = endX - touchStartXRef.current;
             const diffY = endY - touchStartYRef.current;
 
@@ -597,16 +594,21 @@ export function EpubViewer({
           isHorizontalSwipe = false;
         };
 
+        const targetElement = renderedDocument.body ?? renderedDocument;
+        if (renderedDocument.body) {
+          renderedDocument.body.style.touchAction = "pan-y";
+        }
+
         renderedDocument.addEventListener("selectionchange", scheduleSelectionUpdate);
         renderedDocument.addEventListener("pointerup", selectWordAtPointer);
         renderedDocument.addEventListener("touchend", scheduleSelectionUpdate);
         renderedDocument.addEventListener("mouseup", scheduleSelectionUpdate);
         renderedDocument.addEventListener("click", selectWordAtPointer);
         renderedDocument.addEventListener("pointerup", handleIframeClick);
-        renderedDocument.addEventListener("touchstart", handleTouchStart, { passive: true });
-        renderedDocument.addEventListener("touchmove", handleTouchMove, { passive: false });
-        renderedDocument.addEventListener("touchend", handleTouchEnd, { passive: true });
-        renderedDocument.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+        targetElement.addEventListener("touchstart", handleTouchStart, { passive: true });
+        targetElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+        targetElement.addEventListener("touchend", handleTouchEnd, { passive: true });
+        targetElement.addEventListener("touchcancel", handleTouchCancel, { passive: true });
         selectionCleanupRef.current = () => {
           renderedDocument.removeEventListener("selectionchange", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("pointerup", selectWordAtPointer);
@@ -614,10 +616,10 @@ export function EpubViewer({
           renderedDocument.removeEventListener("mouseup", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("click", selectWordAtPointer);
           renderedDocument.removeEventListener("pointerup", handleIframeClick);
-          renderedDocument.removeEventListener("touchstart", handleTouchStart);
-          renderedDocument.removeEventListener("touchmove", handleTouchMove);
-          renderedDocument.removeEventListener("touchend", handleTouchEnd);
-          renderedDocument.removeEventListener("touchcancel", handleTouchCancel);
+          targetElement.removeEventListener("touchstart", handleTouchStart);
+          targetElement.removeEventListener("touchmove", handleTouchMove);
+          targetElement.removeEventListener("touchend", handleTouchEnd);
+          targetElement.removeEventListener("touchcancel", handleTouchCancel);
         };
         updateSelection();
       });
