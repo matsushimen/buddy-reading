@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Menu, X } from "lucide-react";
 import { GlobalWorkerOptions, TextLayer, getDocument, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
@@ -49,6 +49,49 @@ export function PdfViewer({
   const selectionFrameRef = useRef<number | null>(null);
   const renderGenerationRef = useRef(0);
   const [pageNumber, setPageNumber] = useState(Math.max(1, initialPage));
+
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>): void => {
+    if (e.touches.length > 0) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>): void => {
+    if (window.innerWidth >= 640) {
+      return;
+    }
+    if (touchStartXRef.current === null || touchStartYRef.current === null) {
+      return;
+    }
+    if (e.changedTouches.length > 0) {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = endX - touchStartXRef.current;
+      const diffY = endY - touchStartYRef.current;
+
+      if (Math.abs(diffY) > 50) {
+        touchStartXRef.current = null;
+        touchStartYRef.current = null;
+        return;
+      }
+
+      if (diffX < -50) {
+        if (pageCount > 0 && pageNumber < pageCount) {
+          setPageNumber((current) => current + 1);
+        }
+      } else if (diffX > 50) {
+        if (pageNumber > 1) {
+          setPageNumber((current) => current - 1);
+        }
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+  };
   const [pageCount, setPageCount] = useState(0);
   const [renderWidth, setRenderWidth] = useState(0);
   const [documentVersion, setDocumentVersion] = useState(0);
@@ -297,6 +340,8 @@ export function PdfViewer({
       <div
         ref={containerRef}
         className={`min-h-0 flex-1 overflow-auto bg-slate-100 ${isFullscreen ? "p-0" : "p-4"}`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest("button")) {

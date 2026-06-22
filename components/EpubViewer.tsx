@@ -149,6 +149,8 @@ export function EpubViewer({
   const resizeFrameRef = useRef<number | null>(null);
   const selectionFrameRef = useRef<number | null>(null);
   const fontSizeRef = useRef(90);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
   const [locationLabel, setLocationLabel] = useState("EPUB");
   const [fontSize, setFontSize] = useState(90);
   const [error, setError] = useState<string | null>(null);
@@ -338,6 +340,72 @@ export function EpubViewer({
     };
   }, [measureGlobalPagination, syncViewportSize]);
 
+  const navigateRendition = useCallback(
+    async (rendition: EpubRenditionLike, direction: "next" | "prev"): Promise<void> => {
+      try {
+        if (direction === "next") {
+          await rendition.next();
+        } else {
+          await rendition.prev();
+        }
+        syncLocation(rendition.currentLocation());
+      } catch (cause: unknown) {
+        setError(cause instanceof Error ? cause.message : "EPUBページの移動に失敗しました。");
+      }
+    },
+    [syncLocation]
+  );
+
+  const shouldDisplayAdjacentSpine = useCallback(
+    (direction: -1 | 1): boolean => {
+      const book = bookRef.current;
+      const rendition = renditionRef.current;
+      const section = currentSectionRef.current;
+      if (!book || !rendition || typeof section?.index !== "number") {
+        return false;
+      }
+
+      const pagination = currentSectionPageRef.current;
+      if (direction > 0 && typeof pagination.page === "number" && typeof pagination.total === "number" && pagination.page < pagination.total) {
+        return false;
+      }
+      if (direction < 0 && typeof pagination.page === "number" && pagination.page > 1) {
+        return false;
+      }
+
+      const adjacentSection = book.spine.get(section.index + direction);
+      if (!adjacentSection?.href) {
+        return false;
+      }
+
+      void displayTarget(rendition, adjacentSection.href);
+      return true;
+    },
+    [displayTarget]
+  );
+
+  const goPrevious = useCallback((): void => {
+    const rendition = renditionRef.current;
+    if (!rendition) {
+      return;
+    }
+    if (shouldDisplayAdjacentSpine(-1)) {
+      return;
+    }
+    void navigateRendition(rendition, "prev");
+  }, [shouldDisplayAdjacentSpine, navigateRendition]);
+
+  const goNext = useCallback((): void => {
+    const rendition = renditionRef.current;
+    if (!rendition) {
+      return;
+    }
+    if (shouldDisplayAdjacentSpine(1)) {
+      return;
+    }
+    void navigateRendition(rendition, "next");
+  }, [shouldDisplayAdjacentSpine, navigateRendition]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -460,12 +528,50 @@ export function EpubViewer({
           }
         };
 
+        const handleTouchStart = (event: TouchEvent): void => {
+          if (event.touches.length > 0) {
+            touchStartXRef.current = event.touches[0].clientX;
+            touchStartYRef.current = event.touches[0].clientY;
+          }
+        };
+
+        const handleTouchEnd = (event: TouchEvent): void => {
+          if (window.innerWidth >= 640) {
+            return;
+          }
+          if (touchStartXRef.current === null || touchStartYRef.current === null) {
+            return;
+          }
+          if (event.changedTouches.length > 0) {
+            const endX = event.changedTouches[0].clientX;
+            const endY = event.changedTouches[0].clientY;
+            const diffX = endX - touchStartXRef.current;
+            const diffY = endY - touchStartYRef.current;
+
+            if (Math.abs(diffY) > 50) {
+              touchStartXRef.current = null;
+              touchStartYRef.current = null;
+              return;
+            }
+
+            if (diffX < -50) {
+              goNext();
+            } else if (diffX > 50) {
+              goPrevious();
+            }
+          }
+          touchStartXRef.current = null;
+          touchStartYRef.current = null;
+        };
+
         renderedDocument.addEventListener("selectionchange", scheduleSelectionUpdate);
         renderedDocument.addEventListener("pointerup", selectWordAtPointer);
         renderedDocument.addEventListener("touchend", scheduleSelectionUpdate);
         renderedDocument.addEventListener("mouseup", scheduleSelectionUpdate);
         renderedDocument.addEventListener("click", selectWordAtPointer);
         renderedDocument.addEventListener("pointerup", handleIframeClick);
+        renderedDocument.addEventListener("touchstart", handleTouchStart, { passive: true });
+        renderedDocument.addEventListener("touchend", handleTouchEnd, { passive: true });
         selectionCleanupRef.current = () => {
           renderedDocument.removeEventListener("selectionchange", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("pointerup", selectWordAtPointer);
@@ -473,6 +579,8 @@ export function EpubViewer({
           renderedDocument.removeEventListener("mouseup", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("click", selectWordAtPointer);
           renderedDocument.removeEventListener("pointerup", handleIframeClick);
+          renderedDocument.removeEventListener("touchstart", handleTouchStart);
+          renderedDocument.removeEventListener("touchend", handleTouchEnd);
         };
         updateSelection();
       });
@@ -524,7 +632,7 @@ export function EpubViewer({
       bookRef.current?.destroy();
       bookRef.current = null;
     };
-  }, [blob, bookId, displayInitialTarget, initialCfi, measureGlobalPagination, onLocationChange, onPositionChange, onSelectionChange, onTextChange, syncLocation, syncViewportSize]);
+  }, [blob, bookId, displayInitialTarget, initialCfi, measureGlobalPagination, onLocationChange, onPositionChange, onSelectionChange, onTextChange, syncLocation, syncViewportSize, goNext, goPrevious]);
 
   useEffect(() => {
     fontSizeRef.current = fontSize;
@@ -560,27 +668,6 @@ export function EpubViewer({
     }
   }, [displayTarget, jumpRequest, jumpRequest?.token]);
 
-  function goPrevious(): void {
-    const rendition = renditionRef.current;
-    if (!rendition) {
-      return;
-    }
-    if (shouldDisplayAdjacentSpine(-1)) {
-      return;
-    }
-    void navigateRendition(rendition, "prev");
-  }
-
-  function goNext(): void {
-    const rendition = renditionRef.current;
-    if (!rendition) {
-      return;
-    }
-    if (shouldDisplayAdjacentSpine(1)) {
-      return;
-    }
-    void navigateRendition(rendition, "next");
-  }
 
   function jumpToTocHref(href: string): void {
     const rendition = renditionRef.current;
@@ -592,44 +679,6 @@ export function EpubViewer({
       await displayTarget(rendition, href);
       setIsTocOpen(false);
     })();
-  }
-
-  async function navigateRendition(rendition: EpubRenditionLike, direction: "next" | "prev"): Promise<void> {
-    try {
-      if (direction === "next") {
-        await rendition.next();
-      } else {
-        await rendition.prev();
-      }
-      syncLocation(rendition.currentLocation());
-    } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : "EPUBページの移動に失敗しました。");
-    }
-  }
-
-  function shouldDisplayAdjacentSpine(direction: -1 | 1): boolean {
-    const book = bookRef.current;
-    const rendition = renditionRef.current;
-    const section = currentSectionRef.current;
-    if (!book || !rendition || typeof section?.index !== "number") {
-      return false;
-    }
-
-    const pagination = currentSectionPageRef.current;
-    if (direction > 0 && typeof pagination.page === "number" && typeof pagination.total === "number" && pagination.page < pagination.total) {
-      return false;
-    }
-    if (direction < 0 && typeof pagination.page === "number" && pagination.page > 1) {
-      return false;
-    }
-
-    const adjacentSection = book.spine.get(section.index + direction);
-    if (!adjacentSection?.href) {
-      return false;
-    }
-
-    void displayTarget(rendition, adjacentSection.href);
-    return true;
   }
 
   return (

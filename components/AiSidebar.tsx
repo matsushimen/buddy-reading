@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, Loader2, MessageSquareText, RefreshCw, X } from "lucide-react";
 import {
   approveBookContextUpdate,
@@ -67,6 +67,73 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
   const [response, setResponse] = useState<AnnotationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  const [btnPosition, setBtnPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; btnX: number; btnY: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const button = buttonRef.current;
+    if (!button) return;
+
+    button.setPointerCapture(e.pointerId);
+
+    const rect = button.getBoundingClientRect();
+    dragStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      btnX: rect.left,
+      btnY: rect.top,
+    };
+    isDraggingRef.current = false;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragStartRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.pointerX;
+    const dy = e.clientY - dragStartRef.current.pointerY;
+
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      isDraggingRef.current = true;
+    }
+
+    let newX = dragStartRef.current.btnX + dx;
+    let newY = dragStartRef.current.btnY + dy;
+
+    const button = buttonRef.current;
+    if (button) {
+      const rect = button.getBoundingClientRect();
+      const maxX = window.innerWidth - rect.width;
+      const maxY = window.innerHeight - rect.height;
+
+      newX = Math.max(0, Math.min(newX, maxX));
+      newY = Math.max(0, Math.min(newY, maxY));
+    }
+
+    setBtnPosition({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragStartRef.current) return;
+
+    const button = buttonRef.current;
+    if (button) {
+      try {
+        button.releasePointerCapture(e.pointerId);
+      } catch (err) {
+        // Fallback for environments where releasePointerCapture fails
+        console.warn("releasePointerCapture failed", err);
+      }
+    }
+
+    dragStartRef.current = null;
+
+    if (!isDraggingRef.current) {
+      setIsOpen(true);
+    }
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [isCached, setIsCached] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -463,10 +530,26 @@ export function AiSidebar(props: AiSidebarProps): React.ReactElement {
     <>
       {!isOpen ? (
         <button
+          ref={buttonRef}
           type="button"
-          className="fixed bottom-20 right-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-panel"
+          className="fixed z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-panel touch-none select-none"
+          style={
+            btnPosition
+              ? {
+                  left: `${btnPosition.x}px`,
+                  top: `${btnPosition.y}px`,
+                  bottom: "auto",
+                  right: "auto"
+                }
+              : {
+                  bottom: "5rem",
+                  right: "1rem"
+                }
+          }
           aria-label="AI注釈を開く"
-          onClick={() => setIsOpen(true)}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
         >
           <Bot className="h-5 w-5" aria-hidden />
         </button>
