@@ -446,7 +446,7 @@ export function EpubViewer({
           onSelectionChange(selectedWord, toAbsoluteRect(wordRange.getBoundingClientRect(), iframe));
         };
 
-        const handleIframeClick = (event: MouseEvent): void => {
+        const handleIframeClick = (event: PointerEvent): void => {
           const target = event.target as HTMLElement;
           if (target.closest("a") || target.closest("button")) {
             return;
@@ -465,14 +465,14 @@ export function EpubViewer({
         renderedDocument.addEventListener("touchend", scheduleSelectionUpdate);
         renderedDocument.addEventListener("mouseup", scheduleSelectionUpdate);
         renderedDocument.addEventListener("click", selectWordAtPointer);
-        renderedDocument.addEventListener("click", handleIframeClick);
+        renderedDocument.addEventListener("pointerup", handleIframeClick);
         selectionCleanupRef.current = () => {
           renderedDocument.removeEventListener("selectionchange", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("pointerup", selectWordAtPointer);
           renderedDocument.removeEventListener("touchend", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("mouseup", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("click", selectWordAtPointer);
-          renderedDocument.removeEventListener("click", handleIframeClick);
+          renderedDocument.removeEventListener("pointerup", handleIframeClick);
         };
         updateSelection();
       });
@@ -670,16 +670,26 @@ export function EpubViewer({
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
-          {onToggleFullscreen && (
+          <div className="flex items-center gap-2">
+            {onToggleFullscreen && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-md border border-line bg-white p-2 text-ink hover:bg-slate-50"
+                onClick={onToggleFullscreen}
+                aria-label={isFullscreen ? "全画面表示を解除" : "全画面表示"}
+              >
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            )}
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-md border border-line bg-white p-2 text-ink hover:bg-slate-50"
-              onClick={onToggleFullscreen}
-              aria-label={isFullscreen ? "全画面表示を解除" : "全画面表示"}
+              onClick={() => setShowControls(false)}
+              aria-label="メニューを非表示"
             >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              <X className="h-3.5 w-3.5" aria-hidden />
             </button>
-          )}
+          </div>
         </div>
 
         {/* Desktop Settings Top Bar */}
@@ -841,6 +851,17 @@ export function EpubViewer({
           </button>
         </div>
       </div>
+
+      {!showControls && (
+        <button
+          type="button"
+          className="absolute bottom-4 left-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-800/90 text-white shadow-panel transition-all duration-300 hover:bg-slate-700 sm:hidden"
+          aria-label="メニューを表示"
+          onClick={() => setShowControls(true)}
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+      )}
     </section>
   );
 }

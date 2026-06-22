@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Menu, X } from "lucide-react";
 import { GlobalWorkerOptions, TextLayer, getDocument, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { saveProgress } from "@/lib/db";
 
@@ -272,7 +272,7 @@ export function PdfViewer({
           showControls ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto"
         ].join(" ")}
       >
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-2">
           {onToggleFullscreen && (
             <button
               type="button"
@@ -283,6 +283,14 @@ export function PdfViewer({
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
           )}
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-md border border-line bg-white p-2 text-ink hover:bg-slate-50 sm:hidden"
+            onClick={() => setShowControls(false)}
+            aria-label="メニューを非表示"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
         </div>
       </div>
 
@@ -343,6 +351,17 @@ export function PdfViewer({
           </button>
         </div>
       </div>
+
+      {!showControls && (
+        <button
+          type="button"
+          className="absolute bottom-4 left-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-800/90 text-white shadow-panel transition-all duration-300 hover:bg-slate-700 sm:hidden"
+          aria-label="メニューを表示"
+          onClick={() => setShowControls(true)}
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+      )}
     </section>
   );
 }
