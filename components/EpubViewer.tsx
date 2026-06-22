@@ -528,10 +528,35 @@ export function EpubViewer({
           }
         };
 
+        let isHorizontalSwipe = false;
+
         const handleTouchStart = (event: TouchEvent): void => {
           if (event.touches.length > 0) {
             touchStartXRef.current = event.touches[0].clientX;
             touchStartYRef.current = event.touches[0].clientY;
+            isHorizontalSwipe = false;
+          }
+        };
+
+        const handleTouchMove = (event: TouchEvent): void => {
+          if (touchStartXRef.current === null || touchStartYRef.current === null) {
+            return;
+          }
+          if (event.touches.length > 0) {
+            const currentX = event.touches[0].clientX;
+            const currentY = event.touches[0].clientY;
+            const diffX = currentX - touchStartXRef.current;
+            const diffY = currentY - touchStartYRef.current;
+
+            if (!isHorizontalSwipe && Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+              isHorizontalSwipe = true;
+            }
+
+            if (isHorizontalSwipe) {
+              if (event.cancelable) {
+                event.preventDefault();
+              }
+            }
           }
         };
 
@@ -551,6 +576,7 @@ export function EpubViewer({
             if (Math.abs(diffY) > 50) {
               touchStartXRef.current = null;
               touchStartYRef.current = null;
+              isHorizontalSwipe = false;
               return;
             }
 
@@ -562,6 +588,13 @@ export function EpubViewer({
           }
           touchStartXRef.current = null;
           touchStartYRef.current = null;
+          isHorizontalSwipe = false;
+        };
+
+        const handleTouchCancel = (): void => {
+          touchStartXRef.current = null;
+          touchStartYRef.current = null;
+          isHorizontalSwipe = false;
         };
 
         renderedDocument.addEventListener("selectionchange", scheduleSelectionUpdate);
@@ -571,7 +604,9 @@ export function EpubViewer({
         renderedDocument.addEventListener("click", selectWordAtPointer);
         renderedDocument.addEventListener("pointerup", handleIframeClick);
         renderedDocument.addEventListener("touchstart", handleTouchStart, { passive: true });
+        renderedDocument.addEventListener("touchmove", handleTouchMove, { passive: false });
         renderedDocument.addEventListener("touchend", handleTouchEnd, { passive: true });
+        renderedDocument.addEventListener("touchcancel", handleTouchCancel, { passive: true });
         selectionCleanupRef.current = () => {
           renderedDocument.removeEventListener("selectionchange", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("pointerup", selectWordAtPointer);
@@ -580,7 +615,9 @@ export function EpubViewer({
           renderedDocument.removeEventListener("click", selectWordAtPointer);
           renderedDocument.removeEventListener("pointerup", handleIframeClick);
           renderedDocument.removeEventListener("touchstart", handleTouchStart);
+          renderedDocument.removeEventListener("touchmove", handleTouchMove);
           renderedDocument.removeEventListener("touchend", handleTouchEnd);
+          renderedDocument.removeEventListener("touchcancel", handleTouchCancel);
         };
         updateSelection();
       });

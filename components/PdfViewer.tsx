@@ -49,50 +49,102 @@ export function PdfViewer({
   const selectionFrameRef = useRef<number | null>(null);
   const renderGenerationRef = useRef(0);
   const [pageNumber, setPageNumber] = useState(Math.max(1, initialPage));
+  const [pageCount, setPageCount] = useState(0);
 
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>): void => {
-    if (e.touches.length > 0) {
-      touchStartXRef.current = e.touches[0].clientX;
-      touchStartYRef.current = e.touches[0].clientY;
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>): void => {
-    if (window.innerWidth >= 640) {
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
       return;
     }
-    if (touchStartXRef.current === null || touchStartYRef.current === null) {
-      return;
-    }
-    if (e.changedTouches.length > 0) {
-      const endX = e.changedTouches[0].clientX;
-      const endY = e.changedTouches[0].clientY;
-      const diffX = endX - touchStartXRef.current;
-      const diffY = endY - touchStartYRef.current;
 
-      if (Math.abs(diffY) > 50) {
-        touchStartXRef.current = null;
-        touchStartYRef.current = null;
+    let isHorizontalSwipe = false;
+
+    const handleTouchStart = (e: TouchEvent): void => {
+      if (e.touches.length > 0) {
+        touchStartXRef.current = e.touches[0].clientX;
+        touchStartYRef.current = e.touches[0].clientY;
+        isHorizontalSwipe = false;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent): void => {
+      if (touchStartXRef.current === null || touchStartYRef.current === null) {
         return;
       }
+      if (e.touches.length > 0) {
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        const diffX = currentX - touchStartXRef.current;
+        const diffY = currentY - touchStartYRef.current;
 
-      if (diffX < -50) {
-        if (pageCount > 0 && pageNumber < pageCount) {
-          setPageNumber((current) => current + 1);
+        if (!isHorizontalSwipe && Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+          isHorizontalSwipe = true;
         }
-      } else if (diffX > 50) {
-        if (pageNumber > 1) {
-          setPageNumber((current) => current - 1);
+
+        if (isHorizontalSwipe) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
         }
       }
-    }
-    touchStartXRef.current = null;
-    touchStartYRef.current = null;
-  };
-  const [pageCount, setPageCount] = useState(0);
+    };
+
+    const handleTouchEnd = (e: TouchEvent): void => {
+      if (window.innerWidth >= 640) {
+        return;
+      }
+      if (touchStartXRef.current === null || touchStartYRef.current === null) {
+        return;
+      }
+      if (e.changedTouches.length > 0) {
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - touchStartXRef.current;
+        const diffY = endY - touchStartYRef.current;
+
+        if (Math.abs(diffY) > 50) {
+          touchStartXRef.current = null;
+          touchStartYRef.current = null;
+          isHorizontalSwipe = false;
+          return;
+        }
+
+        if (diffX < -50) {
+          if (pageCount > 0 && pageNumber < pageCount) {
+            setPageNumber((current) => current + 1);
+          }
+        } else if (diffX > 50) {
+          if (pageNumber > 1) {
+            setPageNumber((current) => current - 1);
+          }
+        }
+      }
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      isHorizontalSwipe = false;
+    };
+
+    const handleTouchCancel = (): void => {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      isHorizontalSwipe = false;
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchCancel);
+    };
+  }, [pageCount, pageNumber]);
   const [renderWidth, setRenderWidth] = useState(0);
   const [documentVersion, setDocumentVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -340,8 +392,6 @@ export function PdfViewer({
       <div
         ref={containerRef}
         className={`min-h-0 flex-1 overflow-auto bg-slate-100 ${isFullscreen ? "p-0" : "p-4"}`}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest("button")) {
