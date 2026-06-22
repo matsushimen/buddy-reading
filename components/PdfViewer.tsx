@@ -53,6 +53,7 @@ export function PdfViewer({
   const [renderWidth, setRenderWidth] = useState(0);
   const [documentVersion, setDocumentVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -263,23 +264,47 @@ export function PdfViewer({
   }, [jumpRequest, jumpRequest?.token]);
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-end gap-3 border-b border-line bg-white px-3 py-2">
-        {onToggleFullscreen && (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md border border-line bg-white p-2 text-ink hover:bg-slate-50"
-            onClick={onToggleFullscreen}
-            aria-label={isFullscreen ? "全画面表示を解除" : "全画面表示"}
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
-        )}
+    <section className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={[
+          "z-30 border-b border-line bg-white px-3 py-2 transition-all duration-300",
+          "absolute left-2 right-2 top-2 rounded-lg border bg-white/95 shadow-md sm:static sm:left-auto sm:right-auto sm:top-auto sm:rounded-none sm:border-0 sm:border-b sm:bg-white sm:shadow-none",
+          showControls ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto"
+        ].join(" ")}
+      >
+        <div className="flex items-center justify-end gap-3">
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-md border border-line bg-white p-2 text-ink hover:bg-slate-50"
+              onClick={onToggleFullscreen}
+              aria-label={isFullscreen ? "全画面表示を解除" : "全画面表示"}
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div ref={containerRef} className={`min-h-0 flex-1 overflow-auto bg-slate-100 ${isFullscreen ? "p-0" : "p-4"}`}>
+      <div
+        ref={containerRef}
+        className={`min-h-0 flex-1 overflow-auto bg-slate-100 ${isFullscreen ? "p-0" : "p-4"}`}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("button")) {
+            return;
+          }
+          const selection = window.getSelection();
+          if (selection && selection.toString().trim().length > 0) {
+            return;
+          }
+          if (window.innerWidth < 640) {
+            setShowControls((current) => !current);
+          }
+        }}
+      >
         {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
-        <div className="mx-auto w-fit rounded-md bg-white p-2 shadow-sm">
+        <div className="mx-auto w-fit rounded-md bg-white p-2 shadow-sm my-4">
           <div className="relative">
             <canvas ref={canvasRef} aria-label="PDF page canvas" />
             <div ref={textLayerRef} className="textLayer absolute inset-0" />
@@ -287,28 +312,36 @@ export function PdfViewer({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-line bg-white px-3 py-2">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium disabled:opacity-40"
-          disabled={pageNumber <= 1}
-          onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-          前
-        </button>
-        <p className="text-sm text-slate-600 font-medium">
-          {pageNumber} / {pageCount || "-"}
-        </p>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium disabled:opacity-40"
-          disabled={pageCount === 0 || pageNumber >= pageCount}
-          onClick={() => setPageNumber((current) => Math.min(pageCount, current + 1))}
-        >
-          次
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
+      <div
+        className={[
+          "z-30 border-t border-line bg-white px-3 py-2 transition-all duration-300",
+          "absolute bottom-2 left-2 right-2 rounded-lg border bg-white/95 shadow-md sm:static sm:bottom-auto sm:left-auto sm:right-auto sm:rounded-none sm:border-0 sm:border-t sm:bg-white sm:shadow-none",
+          showControls ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto"
+        ].join(" ")}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium disabled:opacity-40"
+            disabled={pageNumber <= 1}
+            onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+            前
+          </button>
+          <p className="text-sm text-slate-600 font-medium">
+            {pageNumber} / {pageCount || "-"}
+          </p>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium disabled:opacity-40"
+            disabled={pageCount === 0 || pageNumber >= pageCount}
+            onClick={() => setPageNumber((current) => Math.min(pageCount, current + 1))}
+          >
+            次
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
       </div>
     </section>
   );

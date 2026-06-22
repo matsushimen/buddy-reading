@@ -154,6 +154,7 @@ export function EpubViewer({
   const [error, setError] = useState<string | null>(null);
   const [tocItems, setTocItems] = useState<EpubTocItem[]>([]);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
 
   const syncLocation = useCallback(
     (location: EpubRelocatedLocationLike): void => {
@@ -445,17 +446,33 @@ export function EpubViewer({
           onSelectionChange(selectedWord, toAbsoluteRect(wordRange.getBoundingClientRect(), iframe));
         };
 
+        const handleIframeClick = (event: MouseEvent): void => {
+          const target = event.target as HTMLElement;
+          if (target.closest("a") || target.closest("button")) {
+            return;
+          }
+          const selection = renderedDocument.getSelection();
+          if (selection && selection.toString().trim().length > 0) {
+            return;
+          }
+          if (window.innerWidth < 640) {
+            setShowControls((current) => !current);
+          }
+        };
+
         renderedDocument.addEventListener("selectionchange", scheduleSelectionUpdate);
         renderedDocument.addEventListener("pointerup", selectWordAtPointer);
         renderedDocument.addEventListener("touchend", scheduleSelectionUpdate);
         renderedDocument.addEventListener("mouseup", scheduleSelectionUpdate);
         renderedDocument.addEventListener("click", selectWordAtPointer);
+        renderedDocument.addEventListener("click", handleIframeClick);
         selectionCleanupRef.current = () => {
           renderedDocument.removeEventListener("selectionchange", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("pointerup", selectWordAtPointer);
           renderedDocument.removeEventListener("touchend", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("mouseup", scheduleSelectionUpdate);
           renderedDocument.removeEventListener("click", selectWordAtPointer);
+          renderedDocument.removeEventListener("click", handleIframeClick);
         };
         updateSelection();
       });
@@ -616,8 +633,14 @@ export function EpubViewer({
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="border-b border-line bg-white px-3 py-2">
+    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={[
+          "z-30 border-b border-line bg-white px-3 py-2 transition-all duration-300",
+          "absolute left-2 right-2 top-2 rounded-lg border bg-white/95 shadow-md sm:static sm:left-auto sm:right-auto sm:top-auto sm:rounded-none sm:border-0 sm:border-b sm:bg-white sm:shadow-none",
+          showControls ? "translate-y-0 opacity-100" : "-translate-y-16 opacity-0 pointer-events-none sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto"
+        ].join(" ")}
+      >
         {/* Mobile Settings Top Bar */}
         <div className="flex items-center justify-between gap-2 sm:hidden">
           <div className="flex items-center gap-1 rounded-md border border-line bg-white p-1">
@@ -701,12 +724,22 @@ export function EpubViewer({
         </div>
       </div>
 
-      <div className="min-w-0 min-h-0 flex-1 overflow-hidden bg-white">
+      <div
+        className="min-w-0 min-h-0 flex-1 overflow-hidden bg-white"
+        onClick={() => {
+          if (window.innerWidth < 640) {
+            setShowControls((current) => !current);
+          }
+        }}
+      >
         <div className="flex h-full min-h-0 flex-col lg:flex-row">
           {isTocOpen ? (
             <aside
               id="epub-toc-panel"
-              className="min-w-0 border-b border-line bg-slate-50 p-3 lg:h-full lg:w-80 lg:flex-none lg:border-b-0 lg:border-r"
+              className={[
+                "z-40 min-w-0 bg-slate-50 p-3 shadow-lg border-line transition-all duration-300",
+                "absolute bottom-16 left-2 right-2 top-16 rounded-lg border lg:static lg:bottom-auto lg:left-auto lg:right-auto lg:top-auto lg:h-full lg:w-80 lg:flex-none lg:rounded-none lg:border-y-0 lg:border-r lg:shadow-none"
+              ].join(" ")}
             >
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink">目次</p>
@@ -739,7 +772,13 @@ export function EpubViewer({
         </div>
       </div>
 
-      <div className="border-t border-line bg-white px-3 py-2">
+      <div
+        className={[
+          "z-30 border-t border-line bg-white px-3 py-2 transition-all duration-300",
+          "absolute bottom-2 left-2 right-2 rounded-lg border bg-white/95 shadow-md sm:static sm:bottom-auto sm:left-auto sm:right-auto sm:rounded-none sm:border-0 sm:border-t sm:bg-white sm:shadow-none",
+          showControls ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0 pointer-events-none sm:translate-y-0 sm:opacity-100 sm:pointer-events-auto"
+        ].join(" ")}
+      >
         {/* Mobile Page Turn Bottom Bar */}
         <div className="flex flex-col gap-2 sm:hidden">
           <div className="grid grid-cols-3 gap-2">
